@@ -1,11 +1,11 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const net = require('net');
-const axios = require('axios');
-const bencode = require('bencode');
-const url = require('url');
-const querystring = require('querystring');
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import net from 'net';
+import axios from 'axios';
+import bencode from 'bencode';
+import url from 'url';
+import querystring from 'querystring';
 
 const chunk_SIZE = 512 * 1024;
 
@@ -176,4 +176,4 @@ class Client {
     }
 }
 
-module.exports = Client;
+export default Client;

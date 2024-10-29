@@ -6,8 +6,10 @@
         "test": "echo \"Error: no test specified\" && exit 1",
         "tracker": "nodemon tracker.js",
         "peer": "nodemon peer.js",
+        "client": "nodemon clientApi.js",
         "start": "concurrently \"npm run tracker\" \"npm run peer\""
     },
+    "type": "module",
     "keywords": [],
     "author": "",
     "license": "ISC",

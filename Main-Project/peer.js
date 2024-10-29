@@ -1,10 +1,10 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const axios = require('axios');
-const net = require('net');
-const { Worker, isMainThread, parentPort } = require('worker_threads');
-const ps = require('ps-node');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import axios from 'axios';
+import net from 'net';
+import { Worker, isMainThread, parentPort } from 'worker_threads';
+import ps from 'ps-node';
 
 // Constants
 const chunk_SIZE = 512 * 1024;
