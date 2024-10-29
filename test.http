@@ -45,5 +45,5 @@ Content-Type: application/x-bittorrent
 --boundary--
 
 ### Get Peer List
-GET http://localhost:3000/peers?trackerUrl={{trackerUrl}}&fileName=seqlock.torrent
+GET http://localhost:5000/peers?fileName=seqlock.h
 

@@ -10,7 +10,7 @@ app.post('/announce', (req, res) => {
     console.log('=====================');
     const { ip, port, files } = req.body;
     if (ip && files) {
-        peers[ip] = { port, files };
+        peers[`${ip}:${port}`] = { port, files };
         console.log(peers);
         return res.status(200).json({ message: 'Peer registered successfully' });
     }
@@ -19,7 +19,7 @@ app.post('/announce', (req, res) => {
 
 // Endpoint to retrieve peers who have a specific file
 app.get('/peers', (req, res) => {
-    const fileName = req.query.file;
+    const { fileName } = req.query;
 
     if (fileName) {
         const matchingPeers = Object.keys(peers).filter(ip => peers[ip].files.includes(fileName)).map(ip => ({
