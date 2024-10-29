@@ -38,7 +38,7 @@ function createMagnetLink(torrentData) {
 const fileName = "a.pdf";
 const filePath = path.join("./Share_File", fileName);
 const numChunks = calculateNumberOfChunks(filePath);
-const trackerUrl = "http://10.130.151.157:5000";
+const trackerUrl = "http://localhost:5000";
 const fileSize = fs.statSync(filePath).size;
 
 const torrentData = {

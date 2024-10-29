@@ -31,7 +31,7 @@ function createTorrentFile(filePath, fileName, trackerUrl, chunkSize, outputFile
 const chunkSize = 512 * 1024;
 const fileName = "a.pdf";
 const filePath = path.join("./Share_File", fileName);
-const trackerUrl = "http://192.168.1.13:5000";
+const trackerUrl = "http://localhost:5000";
 const outputFile = path.join("./Torrent_File", "a.torrent");
 
 // Call the function to create a torrent file

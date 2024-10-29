@@ -1,0 +1,8 @@
+@trackerUrl = http://localhost:5000
+
+### get peers
+GET {{trackerUrl}}/peers
+
+
+### get peers count
+GET {{trackerUrl}}/peers_count

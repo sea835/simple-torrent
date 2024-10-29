@@ -34,7 +34,11 @@ app.get('/peers', (req, res) => {
 // Endpoint to get the total number of peers
 app.get('/peers_count', (req, res) => {
     const peerCount = Object.keys(peers).length;
-    return res.status(200).json({ peer_count: peerCount });
+    try {
+        return res.status(200).json({ peer_count: peerCount });
+    } catch (error) {
+        return res.status(400).json({ error: 'Error fetching peer count' });
+    }
 });
 
 // Start the server
