@@ -8,7 +8,7 @@ let peers = {};
 // Endpoint to register a peer
 app.post('/announce', (req, res) => {
     const { ip, port, files } = req.body;
-
+    console.log({ ip, port, files });
     if (ip && files) {
         peers[ip] = { port, files };
         return res.status(200).json({ message: 'Peer registered successfully' });

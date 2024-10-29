@@ -4,11 +4,13 @@ import os from 'os';
 import axios from 'axios';
 import net from 'net';
 import { Worker, isMainThread, parentPort } from 'worker_threads';
+import multer from 'multer';
 import ps from 'ps-node';
 
 // Constants
 const chunk_SIZE = 512 * 1024;
 const tracker_url = "http://localhost:5000";
+const upload = multer({ dest: './Share_File' });
 
 // Helper function to calculate number of chunks
 function calculateNumberOfChunks(filePath) {
@@ -31,7 +33,9 @@ class Peer {
 
     static async uploadFile() {
         // Use a file upload package for Express, e.g., multer in Node.js to handle file uploads
-        console.log('Upload file logic needed with Node.js (use something like multer)');
+        // Upload the file to the server
+        console.log("Upload file to server");
+
         return null;
     }
 
