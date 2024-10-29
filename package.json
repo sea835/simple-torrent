@@ -4,6 +4,7 @@
     "main": "createMagnetLink.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
+        "install": "npm install && cd tracker && npm install && cd ../Peer && npm install",
         "tracker": "cd tracker && nodemon tracker.js",
         "peer": "cd peer && nodemon peer.js",
         "client": "cd peer && nodemon clientApi.js",
