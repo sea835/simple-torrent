@@ -1,20 +1,28 @@
 {
-    "name": "simple-torrent",
+    "name": "node",
     "version": "1.0.0",
-    "main": "peer.js",
+    "main": "createMagnetLink.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "start": "nodemon tracker.js"
+        "tracker": "nodemon tracker.js",
+        "peer": "nodemon peer.js",
+        "client": "nodemon clientApi.js",
+        "start": "concurrently \"npm run tracker\" \"npm run peer\""
     },
+    "type": "module",
+    "keywords": [],
     "author": "",
     "license": "ISC",
     "description": "",
     "dependencies": {
+        "axios": "^1.7.7",
         "bencode": "^4.0.0",
-        "cors": "^2.8.5",
-        "multer": "^1.4.5-lts.1"
+        "express": "^4.21.1",
+        "multer": "^1.4.5-lts.1",
+        "ps-node": "^0.1.6"
     },
     "devDependencies": {
+        "concurrently": "^9.0.1",
         "nodemon": "^3.1.7"
     }
 }
