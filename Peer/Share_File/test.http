@@ -9,7 +9,7 @@ GET {{trackerUrl}}/peers_count
 
 
 ### Upload Torrent File
-POST http://localhost:10000/uploadTorrent
+POST http://localhost:3000/uploadTorrent
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary
@@ -49,6 +49,3 @@ GET http://localhost:5000/peers?fileName=seqlock.h
 
 ### Get File List
 GET http://localhost:10000/files
-
-### Get Peer List from tracker
-GET http://localhost:5000/peers?fileName=seqlock.h

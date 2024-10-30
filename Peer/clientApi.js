@@ -3,13 +3,18 @@ import Client from './client.js';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import cors from 'cors';
+
 import { createTorrentFile } from './createTorrentFile.js';
 import { createMagnetLink } from './createMagnetLink.js';
 
+
 // Create an express app
 const app = express();
-const PORT = 3000;
+const PORT = 10000;
 const announceLink = 'http://localhost:5000/announce';
+
+app.use(cors());
 
 const client = new Client('localhost', './Torrent_File');
 
@@ -19,6 +24,51 @@ app.use(express.json());
 // Setup multer for file uploads
 const upload = multer({ dest: 'uploads/' });
 const shared = multer({ dest: 'Share_File/' });
+const torrent = multer({ dest: 'Torrent_File/' });
+
+const folderPath = path.join('./Share_File'); // Ensure this is the correct path
+const torrentPath = path.join('./Torrent_File');
+
+// Route to get list of files in a folder
+app.get('/files', (req, res) => {
+    // Check if the folder exists
+    fs.access(folderPath, fs.constants.F_OK, (err) => {
+        if (err) {
+            // Folder does not exist
+            return res.status(404).json({ message: 'Directory not found', error: err });
+        }
+
+        // If folder exists, read the contents
+        fs.readdir(folderPath, (err, files) => {
+            if (err) {
+                return res.status(500).json({ message: 'Unable to retrieve files', error: err });
+            }
+
+            // You can send just the file names or even their full paths if needed
+            res.json({ files });
+        });
+    });
+});
+
+app.get('/torrents', (req, res) => {
+    // Check if the folder exists
+    fs.access(torrentPath, fs.constants.F_OK, (err) => {
+        if (err) {
+            // Folder does not exist
+            return res.status(404).json({ message: 'Directory not found', error: err });
+        }
+
+        // If folder exists, read the contents
+        fs.readdir(torrentPath, (err, files) => {
+            if (err) {
+                return res.status(500).json({ message: 'Unable to retrieve files', error: err });
+            }
+
+            // You can send just the file names or even their full paths if needed
+            res.json({ files });
+        });
+    });
+});
 
 app.post('/uploadFile', shared.single('file'), (req, res) => {
     const file = req.file;
@@ -63,19 +113,20 @@ app.post('/createTorrent', upload.single('file'), (req, res) => {
         const torrentFilePath = createTorrentFile(filePath, fileName, trackerUrl, chunkSize, outputFile);
 
         // Send the created torrent file as a download
-        res.download(torrentFilePath, `${torrentName}.torrent`, (err) => {
-            if (err) {
-                console.error('Error sending the file:', err);
-                res.status(500).json({ error: 'Could not download the file' });
-            } else {
-                // Optionally, you can delete the uploaded file after the torrent is created and downloaded
-                fs.unlink(filePath, (err) => {
-                    if (err) {
-                        console.error('Error deleting the uploaded file:', err);
-                    }
-                });
-            }
-        });
+        // res.download(torrentFilePath, `${torrentName}.torrent`, (err) => {
+        //     if (err) {
+        //         console.error('Error sending the file:', err);
+        //         res.status(500).json({ error: 'Could not download the file' });
+        //     } else {
+        //         // Optionally, you can delete the uploaded file after the torrent is created and downloaded
+        //         fs.unlink(filePath, (err) => {
+        //             if (err) {
+        //                 console.error('Error deleting the uploaded file:', err);
+        //             }
+        //         });
+        //     }
+        // });
+        res.json(torrentFilePath);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -112,7 +163,7 @@ app.post('/parseMagnet', (req, res) => {
 });
 
 // POST /uploadTorrent - Upload torrent file and parse its content
-app.post('/uploadTorrent', upload.single('torrentFile'), (req, res) => {
+app.post('/uploadTorrent', torrent.single('torrentFile'), (req, res) => {
     const torrentFile = req.file;
     if (!torrentFile) {
         return res.status(400).json({ error: 'Torrent file is required' });
@@ -122,6 +173,23 @@ app.post('/uploadTorrent', upload.single('torrentFile'), (req, res) => {
         const encodedData = fs.readFileSync(torrentFile.path);
         const torrentData = Client.readTorrentFile(encodedData);
         fs.unlinkSync(torrentFile.path); // Clean up uploaded file
+        res.json(torrentData);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/readTorrent', (req, res) => {
+    const torrentFile = req.body.file;
+    if (!torrentFile) {
+        return res.status(400).json({ error: 'Torrent file is required' });
+    }
+
+    try {
+        const torrentPath = path.join('./Torrent_File', torrentFile);
+        const encodedData = fs.readFileSync(torrentPath);
+        const torrentData = Client.readTorrentFile(encodedData);
+        //  console.log(torrentData);
         res.json(torrentData);
     } catch (error) {
         res.status(500).json({ error: error.message });

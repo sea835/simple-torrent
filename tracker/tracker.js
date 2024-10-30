@@ -1,7 +1,9 @@
 import express from 'express';
 const app = express();
+import cors from 'cors';
 
 app.use(express.json());
+app.use(cors());
 
 let peers = {};
 
@@ -22,10 +24,11 @@ app.get('/peers', (req, res) => {
     const { fileName } = req.query;
 
     if (fileName) {
-        const matchingPeers = Object.keys(peers).filter(ip => peers[ip].files.includes(fileName)).map(ip => ({
-            ip,
-            port: peers[ip].port
-        }));
+        const matchingPeers = Object.keys(peers).filter(address => peers[address].files.includes(fileName))
+            .map(address => {
+                const [ip, port] = address.split(':');
+                return { ip, port };
+            });
 
         return res.status(200).json({ peers: matchingPeers });
     }
