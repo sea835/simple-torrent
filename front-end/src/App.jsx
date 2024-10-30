@@ -89,12 +89,29 @@ function App() {
     }
   }, [torrentData, getPeers]);
 
+  // useEffect(() => {
+  const connectPeer = async () => {
+    try {
+      const response = await axios.post("http://localhost:3000/connect", {
+        ip: "localhost",
+        port: 5173,
+        files: files,
+      });
+      console.log("Connected to tracker:", response.data);
+    } catch (error) {
+      console.error("Error connecting to tracker:", error);
+    }
+  };
+
+  // }, [setFiles]);
+
   // Fetch Files from backend
   useEffect(() => {
     const fetchFiles = async () => {
       try {
         const response = await axios.get("http://localhost:10000/files");
         setFiles(response.data.files || []); // Update file list
+        connectPeer();
       } catch (error) {
         console.error("Error fetching files:", error);
       }
