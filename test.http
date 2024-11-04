@@ -51,7 +51,7 @@ GET http://localhost:3000/ping
 GET http://localhost:5000/peers?fileName=seqlock.h
 
 ### Get Peer List
-GET http://localhost:10000/peers?trackerUrl=http://localhost:5000&fileName=seqlock.h
+GET http://localhost:10001/peers?trackerUrl=http://localhost:5000&fileName=music.mp3
 
 ### Get File List
 GET http://localhost:10000/files
@@ -63,7 +63,7 @@ GET http://localhost:10000/downloadedFiles
 GET http://localhost:5000/peers?fileName=heavy.iso
 
 ### Download File
-POST http://localhost:10000/download
+POST http://localhost:30001/download
 Content-Type: application/json
 
 {
@@ -73,7 +73,7 @@ Content-Type: application/json
 
 
 ### Download File
-POST http://localhost:10000/download
+POST http://localhost:10001/download
 Content-Type: application/json
 
 {
