@@ -90,3 +90,12 @@ Content-Type: application/json
     "trackerUrl": "http://localhost:5000",
     "fileName": "test.http"
 }
+
+### Download File
+POST http://localhost:10000/download
+Content-Type: application/json
+
+{
+    "trackerUrl": "http://localhost:5000",
+    "fileName": "no-image.png"
+}

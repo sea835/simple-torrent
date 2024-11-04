@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
-const chunk_SIZE = 512 * 1024;
+const chunk_SIZE = 50 * 1024;
 
 function App() {
   const [torrent, setTorrent] = useState(null);
@@ -11,6 +11,9 @@ function App() {
   const [torrentData, setTorrentData] = useState({});
   const [peerData, setPeerData] = useState({});
   const [downloadedFiles, setDownloadedFiles] = useState([]);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadStatus, setDownloadStatus] = useState("Not Started");
+  const [chunk, setChunk] = useState(0);
 
   // Handle file selection
   const handleOnUpload = (e) => {
@@ -41,13 +44,45 @@ function App() {
 
   const downloadFile = async (fileName) => {
     try {
-      const response = await axios.post("http://localhost:10000/download", {
+      setDownloadStatus("In Progress");
+      setDownloadProgress(0);
+
+      const msg = await axios.get("http://localhost:10000/clearDownload");
+      // console.log(msg.data);
+
+      // Initialize the download request
+      axios.post("http://localhost:10000/download", {
         fileName: fileName,
         trackerUrl: "http://localhost:5000",
       });
-      console.log("File downloaded successfully:", response.data);
+
+      // Start checking download progress
+      const interval = setInterval(async () => {
+        const chunkResponse = await axios.get(
+          "http://localhost:10000/downloadProgress",
+          {
+            params: { fileName },
+          }
+        );
+
+        const receivedChunks = chunkResponse.data.receivedChunks;
+
+        console.log("Received chunks:", receivedChunks);
+        console.log("Total chunks:", chunk);
+
+        // Calculate the percentage
+        const progress = Math.ceil((receivedChunks / chunk) * 100);
+        setDownloadProgress(progress);
+
+        // Check if download is complete
+        if (receivedChunks >= chunk) {
+          setDownloadStatus("Finished");
+          clearInterval(interval);
+        }
+      }, 500); // Adjust interval as needed
     } catch (error) {
       console.error("Error downloading file:", error);
+      setDownloadStatus("Failed");
     }
   };
 
@@ -55,9 +90,9 @@ function App() {
     uploadTorrent();
   }, [selectedFile]);
 
-  const handleOnDownloadFile = useCallback((fileName) => {
+  const handleOnDownloadFile = (fileName) => {
     downloadFile(fileName);
-  }, []);
+  };
 
   const getPeers = useCallback(async (fileName, announce) => {
     try {
@@ -89,7 +124,7 @@ function App() {
         responsed.hashinfo.file_size / chunk_SIZE
       );
 
-      console.log("Number of Chunks:", numberOfChunks);
+      setChunk(numberOfChunks);
 
       setTorrentData({
         announce: announceString,
@@ -162,37 +197,39 @@ function App() {
   }, []);
 
   return (
-    <div className="container w-[1200px] mx-auto mt-10 bg-gray-900 text-white rounded-lg shadow-md">
+    <div className="container w-[1200px] mx-auto mt-6 bg-gray-900 text-white rounded-lg shadow-md">
       {/* Header */}
-      <header className="p-6 text-center bg-gray-800 rounded-t-lg">
-        <h2 className="text-2xl font-semibold">Simple Torrent Client</h2>
+      <header className="p-6 text-center bg-gradient-to-r from-indigo-500 to-purple-700 rounded-t-lg">
+        <h2 className="text-3xl font-bold">Simple Torrent Client</h2>
       </header>
 
       {/* Main row - Torrent files, Torrent details, and Shared files */}
-      <div className="flex">
+      <div className="flex space-x-4 mt-4">
         {/* Torrent Files List */}
-        <section className="w-1/3 p-6 bg-gray-800">
-          <h3 className="text-lg font-semibold mb-4">Torrent Files</h3>
-          {torrents.length > 0 ? (
-            <ul className="bg-gray-700 p-4 rounded-lg space-y-2">
-              {torrents.map((file) => (
-                <li
-                  key={file}
-                  onClick={() => handleOnReadTorrent(file)}
-                  className="py-1 pl-2 hover:bg-gray-600 rounded cursor-pointer"
-                >
-                  {file}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No torrent files found</p>
-          )}
+        <section className="w-1/3 p-6 bg-gray-800 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4">Torrent Files</h3>
+          <div className="bg-gray-700 p-4 rounded-lg h-[500px] overflow-y-auto">
+            {torrents.length > 0 ? (
+              <ul className="space-y-2">
+                {torrents.map((file) => (
+                  <li
+                    key={file}
+                    onClick={() => handleOnReadTorrent(file)}
+                    className="py-1 pl-2 hover:bg-gray-600 rounded cursor-pointer"
+                  >
+                    {file}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-400">No torrent files found</p>
+            )}
+          </div>
         </section>
 
         {/* Torrent Details */}
-        <section className="w-1/3 p-6 bg-gray-800 border-l border-gray-700 border-r">
-          <h3 className="text-lg font-semibold mb-4">Torrent Details</h3>
+        <section className="w-1/3 p-6 bg-gray-800 border-l border-gray-700 border-r rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4">Torrent Details</h3>
           {torrentData.fileName ? (
             <div className="space-y-2">
               <div>
@@ -210,17 +247,13 @@ function App() {
               </div>
               <div>
                 <p className="font-medium text-sm text-gray-400">File Size:</p>
-                <p>{torrentData.fileSize} KB</p>
-              </div>
-              <div>
-                <p className="font-medium text-sm text-gray-400">Chunk Size:</p>
-                <p>{torrentData.chunkSize} KB</p>
+                <p>{Math.round(torrentData.fileSize / 1024)} KB</p>
               </div>
               <div>
                 <p className="font-medium text-sm text-gray-400">
                   Number of Chunks:
                 </p>
-                <p>{torrentData.numChunks}</p>
+                <p>{Math.round(torrentData.fileSize / 1024 / 50)}</p>
               </div>
               <div>
                 <p className="font-medium text-sm text-gray-400">
@@ -235,16 +268,26 @@ function App() {
                 >
                   Download File
                 </button>
-                {torrent && (
-                  <a
-                    href={torrent}
-                    download
-                    className="px-6 py-2 bg-blue-500 rounded-lg font-semibold hover:bg-blue-600 transition"
-                  >
-                    Download Torrent File
-                  </a>
-                )}
               </div>
+              {downloadProgress > 0 && (
+                <div className="mt-10">
+                  <p className="font-medium text-sm text-gray-400">
+                    Download Progress:
+                  </p>
+                  <div className="w-full bg-gray-600 rounded-full h-4">
+                    <div
+                      className="bg-green-500 h-4 rounded-full"
+                      style={{ width: `${downloadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-400 mt-1">
+                    {Math.round(downloadProgress)}%
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Status: {downloadStatus}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-gray-400">
@@ -253,64 +296,68 @@ function App() {
           )}
         </section>
 
-        {/* Shared Files List */}
-        <aside className="w-1/3 p-6 bg-gray-800 flex flex-col space-y-6">
+        {/* Shared Files and Downloaded Files Section */}
+        <aside className="w-1/3 flex flex-col space-y-6">
           {/* Shared Files Section */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Shared Files</h3>
-            {files.length > 0 ? (
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <div className="grid grid-cols-2 font-semibold border-b border-gray-600 pb-2 mb-2">
-                  <span>File Name</span>
-                  <span className="text-right">Size (KB)</span>
+          <div className="p-6 bg-gray-800 rounded-lg shadow-lg">
+            <h3 className="text-xl font-semibold mb-4">Shared Files</h3>
+            <div className="bg-gray-700 p-4 pt-0 rounded-lg h-[200px] overflow-y-auto">
+              {files.length > 0 ? (
+                <div>
+                  <div className="grid grid-cols-2 font-semibold border-b border-gray-600 pb-2 pt-4 mb-2 sticky top-0 bg-gray-700">
+                    <span>File Name</span>
+                    <span className="text-right">Size (KB)</span>
+                  </div>
+                  <ul className="space-y-2">
+                    {files.map((file) => (
+                      <li
+                        key={file.fileName}
+                        className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
+                      >
+                        <span>{file.fileName}</span>
+                        <span>{file.size}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="space-y-2">
-                  {files.map((file) => (
-                    <li
-                      key={file.fileName}
-                      className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
-                    >
-                      <span>{file.fileName}</span>
-                      <span>{file.size}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-gray-400">No files found</p>
-            )}
+              ) : (
+                <p className="text-gray-400">No files found</p>
+              )}
+            </div>
           </div>
 
           {/* Downloaded Files Section */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Downloaded Files</h3>
-            {downloadedFiles.length > 0 ? (
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <div className="grid grid-cols-2 font-semibold border-b border-gray-600 pb-2 mb-2">
-                  <span>File Name</span>
-                  <span className="text-right">Size (KB)</span>
+          <div className="p-6 bg-gray-800 rounded-lg shadow-lg">
+            <h3 className="text-xl font-semibold mb-4">Downloaded Files</h3>
+            <div className="bg-gray-700 p-4 pt-0 rounded-lg h-[200px] overflow-y-auto">
+              {downloadedFiles.length > 0 ? (
+                <div>
+                  <div className="grid grid-cols-2 font-semibold border-b border-gray-600 pb-2 pt-4 mb-2 sticky top-0 bg-gray-700">
+                    <span>File Name</span>
+                    <span className="text-right">Size (KB)</span>
+                  </div>
+                  <ul className="space-y-2">
+                    {downloadedFiles.map((file) => (
+                      <li
+                        key={file.fileName}
+                        className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
+                      >
+                        <span>{file.fileName}</span>
+                        <span>{file.size}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="space-y-2">
-                  {downloadedFiles.map((file) => (
-                    <li
-                      key={file.fileName}
-                      className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
-                    >
-                      <span>{file.fileName}</span>
-                      <span>{file.size}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-gray-400">No downloaded files found</p>
-            )}
+              ) : (
+                <p className="text-gray-400">No downloaded files found</p>
+              )}
+            </div>
           </div>
         </aside>
       </div>
 
       {/* Action buttons in Torrent Details */}
-      <section className="flex p-6 bg-gray-800 border-t border-gray-700">
+      <section className="flex p-6 bg-gray-800 border-t border-gray-700 mt-4 rounded-lg shadow-lg">
         <input
           type="file"
           onChange={handleOnUpload}
@@ -322,10 +369,19 @@ function App() {
         >
           Create Torrent
         </button>
+        {torrent && (
+          <a
+            href={torrent}
+            download
+            className="px-6 py-2 bg-blue-500 rounded-lg font-semibold hover:bg-blue-600 transition ml-6"
+          >
+            Download Torrent File
+          </a>
+        )}
       </section>
 
       {/* Footer */}
-      <footer className="p-4 bg-gray-800 rounded-b-lg text-center text-gray-400">
+      <footer className="p-4 bg-gray-800 rounded-b-lg text-center text-gray-400 mt-6">
         <p className="text-sm">
           © 2024{" "}
           <span className="text-white font-semibold">

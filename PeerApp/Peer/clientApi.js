@@ -244,18 +244,32 @@ app.post('/download', async(req, res) => {
         const peers = await client.getPeersWithFile(trackerUrl, fileName);
         // console.log(peers);
         try {
-            const downloadStatus = client.downloadFile(fileName, peers.resIP[0], peers.resPort[0]);
-            res.json("File downloaded successfully");
+            const downloadStatus = await client.downloadFile(fileName, peers.resIP[0], peers.resPort[0]);
+            res.json(downloadStatus);
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
     } catch (error) {
         res.status(500).json({
-            massage: "No peers found",
+            message: "No peers found",
             error: error.message
         });
     }
+});
 
+// Endpoint to get download progress
+app.get('/downloadProgress', (req, res) => {
+    const { fileName } = req.query;
+    const chunkListPath = path.join('./Downloads', 'Chunk_List');
+
+    if (!fs.existsSync(chunkListPath)) {
+        return res.status(404).json({ message: 'Chunk list not found' });
+    }
+
+    const files = fs.readdirSync(chunkListPath);
+    const receivedChunks = files.length;
+
+    res.json({ receivedChunks });
 });
 
 // Helper function to announce peer to tracker
@@ -275,6 +289,15 @@ app.post("/connect", (req, res) => {
     const { ip, port } = req.body;
     announcePeer(ip, port);
     res.status(200).json({ message: 'Connected to tracker' });
+});
+
+// clear download chunk list
+app.get('/clearDownload', (req, res) => {
+    const chunkListPath = path.join('./Downloads', 'Chunk_List');
+    if (fs.existsSync(chunkListPath)) {
+        fs.rmdirSync(chunkListPath, { recursive: true });
+    }
+    res.json({ message: 'Download cleared' });
 });
 
 

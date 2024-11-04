@@ -241,6 +241,7 @@ class Client {
 
         fileM.end();
         console.log('Client: Merge all chunks completed');
+        return { status: "Finished", message: "File downloaded successfully" };
     }
 }
 
