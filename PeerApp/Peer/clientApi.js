@@ -4,6 +4,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
+import axios from 'axios';
 
 import { createTorrentFile } from './createTorrentFile.js';
 import { createMagnetLink } from './createMagnetLink.js';
@@ -28,8 +29,10 @@ const torrent = multer({ dest: 'Torrent_File/' });
 
 const folderPath = path.join('./Share_File'); // Ensure this is the correct path
 const torrentPath = path.join('./Torrent_File');
+const downloadPath = path.join('./Downloads');
 
 // Route to get list of files in a folder
+// Route to get list of files in a folder with their sizes
 app.get('/files', (req, res) => {
     // Check if the folder exists
     fs.access(folderPath, fs.constants.F_OK, (err) => {
@@ -44,8 +47,41 @@ app.get('/files', (req, res) => {
                 return res.status(500).json({ message: 'Unable to retrieve files', error: err });
             }
 
-            // You can send just the file names or even their full paths if needed
-            res.json({ files });
+            // Map files to include size information
+            const fileInfo = files.map(file => {
+                const filePath = path.join(folderPath, file);
+                const stats = fs.statSync(filePath);
+                return { fileName: file, size: stats.size }; // Size is in bytes
+            });
+
+            res.json({ files: fileInfo });
+        });
+    });
+});
+
+// Route to get list of files in a folder with their sizes
+app.get('/downloadedFiles', (req, res) => {
+    // Check if the folder exists
+    fs.access(downloadPath, fs.constants.F_OK, (err) => {
+        if (err) {
+            // Folder does not exist
+            return res.status(404).json({ message: 'Directory not found', error: err });
+        }
+
+        // If folder exists, read the contents
+        fs.readdir(downloadPath, (err, files) => {
+            if (err) {
+                return res.status(500).json({ message: 'Unable to retrieve files', error: err });
+            }
+
+            // Map files to include size information
+            const fileInfo = files.map(file => {
+                const filePath = path.join(downloadPath, file);
+                const stats = fs.statSync(downloadPath);
+                return { fileName: file, size: stats.size }; // Size is in bytes
+            });
+
+            res.json({ files: fileInfo });
         });
     });
 });
@@ -111,21 +147,6 @@ app.post('/createTorrent', upload.single('file'), (req, res) => {
 
         // Create the torrent file
         const torrentFilePath = createTorrentFile(filePath, fileName, trackerUrl, chunkSize, outputFile);
-
-        // Send the created torrent file as a download
-        // res.download(torrentFilePath, `${torrentName}.torrent`, (err) => {
-        //     if (err) {
-        //         console.error('Error sending the file:', err);
-        //         res.status(500).json({ error: 'Could not download the file' });
-        //     } else {
-        //         // Optionally, you can delete the uploaded file after the torrent is created and downloaded
-        //         fs.unlink(filePath, (err) => {
-        //             if (err) {
-        //                 console.error('Error deleting the uploaded file:', err);
-        //             }
-        //         });
-        //     }
-        // });
         res.json(torrentFilePath);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -196,9 +217,11 @@ app.post('/readTorrent', (req, res) => {
     }
 });
 
+
 // GET /peers - Fetch peers with the file from the tracker
 app.get('/peers', async(req, res) => {
     const { trackerUrl, fileName } = req.query;
+    // console.log(trackerUrl, fileName);
     if (!trackerUrl || !fileName) {
         return res.status(400).json({ error: 'trackerUrl and fileName are required' });
     }
@@ -206,6 +229,7 @@ app.get('/peers', async(req, res) => {
     try {
         // const client = new Client('localhost', 'Local_Client'); // Replace with correct values
         const peers = await client.getPeersWithFile(trackerUrl, fileName);
+        // const addresses = peers.resIP.map((ip, index) => `${ip}:${peers.resPort[index]}`);
         res.json(peers);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -215,26 +239,46 @@ app.get('/peers', async(req, res) => {
 // POST /download - Start downloading chunks from peers
 app.post('/download', async(req, res) => {
     const { trackerUrl, fileName } = req.body;
-    if (!trackerUrl || !fileName) {
-        return res.status(400).json({ error: 'trackerUrl and fileName are required' });
-    }
 
     try {
-        const client = new Client('localhost', 'Local_Client'); // Replace with correct values
-        const { resIP, resPort } = await client.getPeersWithFile(trackerUrl, fileName);
-        const peerNum = resIP.length;
-        const torrentData = await client.getPeersWithFile(trackerUrl, fileName); // You may need to extract chunkNum
-
-        // Replace chunkNum with actual value from the torrentData
-        await client.clientProcess(fileName, peerNum, resIP, resPort, torrentData.num_chunks);
-
-        res.json({ message: `Download completed for ${fileName}` });
+        const peers = await client.getPeersWithFile(trackerUrl, fileName);
+        // console.log(peers);
+        try {
+            const downloadStatus = client.downloadFile(fileName, peers.resIP[0], peers.resPort[0]);
+            res.json("File downloaded successfully");
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            massage: "No peers found",
+            error: error.message
+        });
     }
+
 });
+
+// Helper function to announce peer to tracker
+const announcePeer = async(ip, port) => {
+    try {
+        const files = fs.readdirSync('./Share_File');
+        const peerInfo = { ip, port, files };
+        const response = await axios.post('http://localhost:5000/announce', peerInfo);
+        console.log('Announced to tracker:', response.data);
+    } catch (error) {
+        console.error('Error announcing to tracker:', error.message);
+    }
+};
+
+// Endpoint to connect and announce to tracker
+app.post("/connect", (req, res) => {
+    const { ip, port } = req.body;
+    announcePeer(ip, port);
+    res.status(200).json({ message: 'Connected to tracker' });
+});
+
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Client running on port ${PORT}`);
 });

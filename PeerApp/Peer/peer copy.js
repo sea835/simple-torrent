@@ -1,16 +1,14 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import axios from 'axios';
-import net from 'net';
-import { Worker, isMainThread, parentPort } from 'worker_threads';
-import multer from 'multer';
-import ps from 'ps-node';
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const axios = require('axios');
+const net = require('net');
+const { Worker, isMainThread, parentPort } = require('worker_threads');
+const ps = require('ps-node');
 
 // Constants
 const chunk_SIZE = 512 * 1024;
 const tracker_url = "http://localhost:5000";
-const upload = multer({ dest: './Share_File' });
 
 // Helper function to calculate number of chunks
 function calculateNumberOfChunks(filePath) {
@@ -33,17 +31,7 @@ class Peer {
 
     static async uploadFile() {
         // Use a file upload package for Express, e.g., multer in Node.js to handle file uploads
-        console.log("Uploading file to server...");
-        // Upload the file to the server
-        // try {
-        //     await axios.post('http://localhost:3000/uploadFile', formData, {
-        //         headers: {
-        //             'Content-Type': 'multipart/form-data, boundary='
-        //         }
-        //     });
-        // } catch (error) {
-        //     console.log(`Error uploading file: ${error.message}`);
-        // }
+        console.log('Upload file logic needed with Node.js (use something like multer)');
         return null;
     }
 
@@ -142,27 +130,13 @@ class Peer {
     }
 }
 
-// Get the wireless IPv4 address
-function getWirelessIPv4() {
-    const interfaces = os.networkInterfaces();
-    for (const interfaceName of Object.keys(interfaces)) {
-        const addresses = interfaces[interfaceName];
-        for (const addr of addresses) {
-            if (addr.family === 'IPv4' && (interfaceName.includes('Wi-Fi') || interfaceName.includes('Wireless') || interfaceName.includes('wlan'))) {
-                return addr.address;
-            }
-        }
-    }
-    return null;
-}
-
-(async function startPeer() {
+(async function main() {
     const peerID = await Peer.getPeersCount(tracker_url) + 1;
-    const port = 12000 + peerID - 1;
-    console.log(`Peer ID: ${peerID}, Port: ${port}`);
+    const port = 3000;
+    this.port = port;
     await Peer.uploadFile();
 
-    const peer = new Peer(getWirelessIPv4(), port, peerID, "Share_File");
+    const peer = new Peer('localhost', port, peerID, "Share_File");
     const files = getFilesToShare("./Share_File");
 
     console.log("Joining the swarm...");
@@ -170,7 +144,7 @@ function getWirelessIPv4() {
 
     console.log("Listening...");
     const serverSocket = net.createServer();
-    serverSocket.listen(port);
+    serverSocket.listen(port, 'localhost');
 
     serverSocket.on('connection', (socket) => {
         socket.once('data', (fileNameBuffer) => {

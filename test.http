@@ -44,11 +44,51 @@ Content-Type: application/x-bittorrent
 < ./some_torrent/seqlock.h
 --boundary--
 
+### Ping
+GET http://localhost:3000/ping
+
 ### Get Peer List
 GET http://localhost:5000/peers?fileName=seqlock.h
+
+### Get Peer List
+GET http://localhost:10000/peers?trackerUrl=http://localhost:5000&fileName=seqlock.h
 
 ### Get File List
 GET http://localhost:10000/files
 
+### Get File List
+GET http://localhost:10000/downloadedFiles
+
 ### Get Peer List from tracker
-GET http://localhost:5000/peers?fileName=seqlock.h
+GET http://localhost:5000/peers?fileName=heavy.iso
+
+### Download File
+POST http://localhost:10000/download
+Content-Type: application/json
+
+{
+    "trackerUrl": "http://localhost:5000",
+    "fileName": "Ai Là Người Thương Em.mp3",	 
+    "fileSize": 11522100
+}
+
+
+### Download File
+POST http://localhost:10000/download
+Content-Type: application/json
+
+{
+    "trackerUrl": "http://localhost:5000",
+    "fileName": "Assignment 1.pdf",	 
+    "fileSize": 192213
+}
+
+
+### Download File
+POST http://localhost:10000/download
+Content-Type: application/json
+
+{
+    "trackerUrl": "http://localhost:5000",
+    "fileName": "test.http"
+}
