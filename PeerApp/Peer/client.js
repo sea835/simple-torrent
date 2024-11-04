@@ -91,7 +91,7 @@ class Client {
         };
     }
 
-    async downloadFile(fileName, peerIp, peerPort,
+    async downloadFile(fileName, peerIp, peerPort, startChunk = 0, endChunk = null,
         downloadsDir = path.join('./Downloads'),
         CHUNK_DIR = path.join('./chunks'),
         SHARE_DIR = path.join('./Share_File')) {
@@ -127,7 +127,10 @@ class Client {
             } else if (message.startsWith('Ready')) {
                 const numChunks = parseInt(message.split(' ')[1], 10);
                 console.log(`Peer is ready to send ${numChunks} chunks`);
-                await this.requestChunks(client, fileName, numChunks);
+                if (endChunk === null) {
+                    endChunk = numChunks - 1;
+                }
+                await this.requestChunks(client, fileName, startChunk, endChunk);
             }
         });
 
@@ -140,7 +143,7 @@ class Client {
         });
     }
 
-    async requestChunks(clientSocket, fileName, numChunks) {
+    async requestChunks(clientSocket, fileName, startChunk, endChunk) {
         const chunkPath = path.join('./Downloads', 'Chunk_List');
         if (!fs.existsSync(chunkPath)) {
             fs.mkdirSync(chunkPath);
@@ -148,28 +151,22 @@ class Client {
             fs.rmSync(chunkPath, { recursive: true });
             fs.mkdirSync(chunkPath);
         }
-        const startChunk = 0; // Start from the first chunk
-        const endChunk = numChunks - 1; // Calculate the number of chunks
 
         console.log(`Client: Requesting chunks ${startChunk} to ${endChunk} from Peer`);
         clientSocket.write('Request for chunk from Peer');
 
-
-        let buffer = Buffer.alloc(0);
-        let chunkIndex = 0;
+        let chunkIndex = startChunk;
 
         const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
         clientSocket.on('data', async(data) => {
-            // buffer = Buffer.concat([buffer, data]);
-
             if (data.toString() === 'Start') {
                 clientSocket.write(startChunk.toString());
             } else if (data.toString() === 'End') {
                 clientSocket.write(endChunk.toString());
             } else {
                 const fileData = Buffer.from(data, 'base64');
-                const filePath = path.join("./Downloads", 'Chunk_List', `chunk${chunkIndex}.txt`);
+                const filePath = path.join(chunkPath, `chunk${chunkIndex}.txt`);
                 try {
                     fs.writeFileSync(filePath, fileData);
                     console.log(`Client: Received chunk ${chunkIndex++}`);
@@ -177,11 +174,15 @@ class Client {
                 } catch (err) {
                     console.error(`Error writing chunk ${chunkIndex}: ${err.message}`);
                 }
+
+                if (chunkIndex > endChunk) {
+                    clientSocket.end();
+                }
             }
         });
 
         clientSocket.on('end', () => {
-            console.log('All chunks received');
+            console.log('All requested chunks received');
             this.fileMake(fileName);
         });
 

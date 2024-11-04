@@ -242,16 +242,39 @@ app.post('/download', async(req, res) => {
 
     try {
         const peers = await client.getPeersWithFile(trackerUrl, fileName);
-        // console.log(peers);
-        try {
-            const downloadStatus = await client.downloadFile(fileName, peers.resIP[0], peers.resPort[0]);
-            res.json(downloadStatus);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
+        if (!peers || peers.resIP.length === 0) {
+            return res.status(500).json({
+                message: "No peers found",
+                error: "No peers available for the requested file"
+            });
         }
+
+        // Calculate the number of chunks for the file
+        const filePath = path.join('./Share_File', fileName);
+        const fileSize = fs.statSync(filePath).size;
+        const chunkSize = 50 * 1024; // 50 KB
+        const numChunks = Math.ceil(fileSize / chunkSize);
+
+        // Distribute chunks among peers
+        const chunksPerPeer = Math.ceil(numChunks / peers.resIP.length);
+        const downloadPromises = [];
+
+        for (let i = 0; i < peers.resIP.length; i++) {
+            const startChunk = i * chunksPerPeer;
+            const endChunk = Math.min((i + 1) * chunksPerPeer - 1, numChunks - 1);
+
+            downloadPromises.push(
+                client.downloadFile(fileName, peers.resIP[i], peers.resPort[i], startChunk, endChunk)
+            );
+        }
+
+        // Wait for all downloads to complete
+        const downloadStatuses = await Promise.all(downloadPromises);
+        res.json({ status: "Download completed", downloadStatuses });
+
     } catch (error) {
         res.status(500).json({
-            message: "No peers found",
+            message: "Error during download",
             error: error.message
         });
     }
