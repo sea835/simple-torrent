@@ -68,8 +68,7 @@ Content-Type: application/json
 
 {
     "trackerUrl": "http://localhost:5000",
-    "fileName": "Ai Là Người Thương Em.mp3",	 
-    "fileSize": 11522100
+    "fileName": "music.mp3"
 }
 
 
@@ -79,8 +78,7 @@ Content-Type: application/json
 
 {
     "trackerUrl": "http://localhost:5000",
-    "fileName": "Assignment 1.pdf",	 
-    "fileSize": 192213
+    "fileName": "Assignment 1.pdf"
 }
 
 

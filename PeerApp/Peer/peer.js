@@ -3,10 +3,11 @@ import path from 'path';
 import os from 'os';
 import axios from 'axios';
 import net from 'net';
+import { Worker } from 'worker_threads';
 import { fileURLToPath } from 'url';
 
 // Constants
-const chunk_SIZE = 50 * 1024; // 512 KB
+const chunk_SIZE = 50 * 1024; // 50 KB
 const tracker_url = "http://localhost:5000";
 
 // Helper function to calculate number of chunks
@@ -29,7 +30,6 @@ class Peer {
     }
 
     static async uploadFile() {
-        // Use a file upload package for Express, e.g., multer in Node.js to handle file uploads
         console.log('Upload file logic needed with Node.js (use something like multer)');
         return null;
     }
@@ -86,25 +86,16 @@ class Peer {
             const fileName = fileNameBuffer.toString();
             console.log(`File requested by client: ${fileName}`);
 
-            // Break the file into chunks
-            const chunkDir = path.join(peer.localPath, 'Chunk_List');
-            if (!fs.existsSync(chunkDir)) {
-                fs.mkdirSync(chunkDir);
-            } else {
-                fs.rmdirSync(chunkDir, { recursive: true });
-                fs.mkdirSync(chunkDir);
-            }
-
             const filePath = path.join(peer.localPath, fileName);
             const numChunks = calculateNumberOfChunks(filePath);
             console.log(`Number of chunks: ${numChunks}`);
 
+            const chunks = [];
             const fileR = fs.createReadStream(filePath, { highWaterMark: chunk_SIZE });
             let chunk = 0;
 
             fileR.on('data', (chunkData) => {
-                const chunkPath = path.join(chunkDir, `chunk${chunk}.txt`);
-                fs.writeFileSync(chunkPath, chunkData);
+                chunks.push(chunkData);
                 chunk++;
             });
 
@@ -118,31 +109,46 @@ class Peer {
                 socket.write("Error");
             });
 
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
             // Handle chunk requests
-            socket.on('data', (data) => {
+            socket.on('data', async(data) => {
                 console.log(`Peer ${peerID}: ${data.toString()}`);
                 const request = data.toString();
 
                 if (request === "Request for chunk from Peer") {
                     socket.write("Start");
-                    socket.once('data', (startChunkData) => {
+                    socket.once('data', async(startChunkData) => {
                         const startChunk = parseInt(startChunkData.toString(), 10);
                         socket.write("End");
-                        socket.once('data', (endChunkData) => {
+                        socket.once('data', async(endChunkData) => {
                             const endChunk = parseInt(endChunkData.toString(), 10);
 
-                            for (let chunk = startChunk; chunk <= endChunk; chunk++) {
-                                const fileData = fs.readFileSync(path.join(peer.localPath, `Chunk_List`, `chunk${chunk}.txt`));
-                                // const chunkData = JSON.stringify({
-                                //     chunk: chunk,
-                                //     data: fileData.toString('base64')
-                                // });
-                                const chunkData = fileData;
-                                socket.write(chunkData);
-                                console.log(`Sent chunk ${chunk}`);
-                            }
+                            const worker = new Worker('./worker.js', {
+                                workerData: {
+                                    chunks,
+                                    startChunk,
+                                    endChunk
+                                }
+                            });
 
-                            socket.end();
+                            worker.on('message', async(message) => {
+                                const { chunk, data } = message;
+                                socket.write(data);
+                                console.log(`Sent chunk ${chunk}`);
+                                await delay(100); // Add delay to ensure proper synchronization
+                            });
+
+                            worker.on('error', (err) => {
+                                console.error(`Worker error: ${err.message}`);
+                            });
+
+                            worker.on('exit', (code) => {
+                                if (code !== 0) {
+                                    console.error(`Worker stopped with exit code ${code}`);
+                                }
+                                socket.end();
+                            });
                         });
                     });
                 } else if (request === "Client had been successfully received all file") {

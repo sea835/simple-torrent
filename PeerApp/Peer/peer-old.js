@@ -1,81 +1,160 @@
 import fs from 'fs';
 import path from 'path';
-import axios from 'axios';
-import express from 'express';
-import cors from 'cors';
-import net from 'net';
-import { Worker, isMainThread, workerData, parentPort } from 'worker_threads';
-import { fileURLToPath } from 'url';
 import os from 'os';
+import axios from 'axios';
+import net from 'net';
+import { fileURLToPath } from 'url';
 
-const app = express();
-const CHUNK_SIZE = 512 * 1024;
-const localPath = './PeerStorage';
-const chunkDir = path.join(localPath, 'Chunk_List');
+// Constants
+const chunk_SIZE = 50 * 1024; // 50 KB
 const tracker_url = "http://localhost:5000";
 
-// Convert `import.meta.url` to `__filename` for ES module compatibility
-const __filename = fileURLToPath(
-    import.meta.url);
-const __dirname = path.dirname(__filename);
-
-var SHARE_DIR = path.join('./Share_File');
-var CHUNK_DIR = path.join('./chunks');
-var downloadsDir = path.join('./Downloads');
-var fileName = 'sample.exe'; // Change the file name as needed
-var filePath = path.join(downloadsDir, fileName);
-
-// Ensure the necessary directories exist
-if (!fs.existsSync(CHUNK_DIR)) {
-    fs.mkdirSync(CHUNK_DIR);
+// Helper function to calculate number of chunks
+function calculateNumberOfChunks(filePath) {
+    const fileSize = fs.statSync(filePath).size;
+    return Math.ceil(fileSize / chunk_SIZE);
 }
 
-if (!fs.existsSync(SHARE_DIR)) {
-    fs.mkdirSync(SHARE_DIR);
+// Helper function to get files in a folder
+function getFilesToShare(folderPath) {
+    return fs.readdirSync(folderPath).filter(f => fs.statSync(path.join(folderPath, f)).isFile());
 }
 
-if (!fs.existsSync(downloadsDir)) {
-    fs.mkdirSync(downloadsDir);
-}
+class Peer {
+    constructor(IP, port, peerID, localPath) {
+        this.IP = IP;
+        this.port = port;
+        this.peerID = peerID;
+        this.localPath = localPath;
+    }
 
-// Server part
-var server = net.createServer(function(socket) {
-    console.log('Connected: ' + socket.remoteAddress + ':' + socket.remotePort);
+    static async uploadFile() {
+        // Use a file upload package for Express, e.g., multer in Node.js to handle file uploads
+        console.log('Upload file logic needed with Node.js (use something like multer)');
+        return null;
+    }
 
-    socket.on('data', function(data) {
-        var fileName = data.toString().trim();
-        var filePath = path.join(SHARE_DIR, fileName);
-
-        if (fs.existsSync(filePath)) {
-            var readStream = fs.createReadStream(filePath, { highWaterMark: CHUNK_SIZE });
-            var chunkIndex = 0;
-
-            readStream.on('data', function(chunk) {
-                var chunkFilePath = path.join(CHUNK_DIR, fileName + 'chunk_' + chunkIndex);
-                fs.writeFileSync(chunkFilePath, chunk);
-                socket.write(chunk);
-                chunkIndex++;
-            });
-
-            readStream.on('end', function() {
-                socket.end();
-            });
-
-            readStream.on('error', function(err) {
-                console.log('File read error:', err);
-                socket.end('Error reading file');
-            });
-        } else {
-            socket.write('File not found');
-            socket.end();
+    async announceToTracker(trackerUrl, files) {
+        const data = {
+            ip: this.IP,
+            port: this.port,
+            files: files
+        };
+        try {
+            const response = await axios.post(`${trackerUrl}/announce`, data);
+            if (response.status === 200) {
+                console.log("Successful registration with tracker");
+            }
+        } catch (error) {
+            console.log(`Error registering with tracker: ${error.response?.data || error.message}`);
         }
+    }
+
+    static async getPeersCount(trackerUrl) {
+        try {
+            const response = await axios.get(`${trackerUrl}/peers_count`);
+            if (response.status === 200) {
+                return response.data.peer_count || 0;
+            }
+        } catch (error) {
+            console.log(`Error fetching peer count: ${error.message}`);
+            return 0;
+        }
+    }
+}
+
+(async function main() {
+    const peerID = await Peer.getPeersCount(tracker_url) + 1;
+    const port = 3000;
+    await Peer.uploadFile();
+
+    const peer = new Peer('localhost', port, peerID, "Share_File");
+    const files = getFilesToShare("./Share_File");
+
+    console.log("Joining the swarm...");
+    await peer.announceToTracker(tracker_url, files);
+
+    console.log("Listening...");
+    const serverSocket = net.createServer();
+    serverSocket.listen(port, 'localhost', () => {
+        console.log(`Peer ${peerID} listening on port ${port}`);
     });
 
-    socket.on('end', function() {
-        console.log('Disconnected: ' + socket.remoteAddress + ':' + socket.remotePort);
-    });
-});
+    serverSocket.on('connection', async(socket) => {
+        console.log(`Peer ${peerID}: New connection established`);
+        socket.once('data', async(fileNameBuffer) => {
+            const fileName = fileNameBuffer.toString();
+            console.log(`File requested by client: ${fileName}`);
 
-server.listen(3000, 'localhost', function() {
-    console.log('Peer socket listening on 127.0.0.1:3000');
-});
+            // Break the file into chunks
+            const chunkDir = path.join(peer.localPath, 'Chunk_List');
+            if (!fs.existsSync(chunkDir)) {
+                fs.mkdirSync(chunkDir);
+            } else {
+                fs.rmdirSync(chunkDir, { recursive: true });
+                fs.mkdirSync(chunkDir);
+            }
+
+            const filePath = path.join(peer.localPath, fileName);
+            const numChunks = calculateNumberOfChunks(filePath);
+            console.log(`Number of chunks: ${numChunks}`);
+
+            const fileR = fs.createReadStream(filePath, { highWaterMark: chunk_SIZE });
+            let chunk = 0;
+
+            fileR.on('data', (chunkData) => {
+                const chunkPath = path.join(chunkDir, `chunk${chunk}.txt`);
+                fs.writeFileSync(chunkPath, chunkData);
+                chunk++;
+            });
+
+            fileR.on('end', () => {
+                console.log(`File ${fileName} broken into ${numChunks} chunks`);
+                socket.write(`Ready ${numChunks}`);
+            });
+
+            fileR.on('error', (err) => {
+                console.error(`Error breaking file into chunks: ${err.message}`);
+                socket.write("Error");
+            });
+
+            // Handle chunk requests
+            socket.on('data', (data) => {
+                console.log(`Peer ${peerID}: ${data.toString()}`);
+                const request = data.toString();
+
+                if (request === "Request for chunk from Peer") {
+                    socket.write("Start");
+                    socket.once('data', (startChunkData) => {
+                        const startChunk = parseInt(startChunkData.toString(), 10);
+                        socket.write("End");
+                        socket.once('data', (endChunkData) => {
+                            const endChunk = parseInt(endChunkData.toString(), 10);
+
+                            for (let chunk = startChunk; chunk <= endChunk; chunk++) {
+                                const fileData = fs.readFileSync(path.join(peer.localPath, `Chunk_List`, `chunk${chunk}.txt`));
+                                // const chunkData = JSON.stringify({
+                                //     chunk: chunk,
+                                //     data: fileData.toString('base64')
+                                // });
+                                const chunkData = fileData;
+                                socket.write(chunkData);
+                                console.log(`Sent chunk ${chunk}`);
+                            }
+
+                            socket.end();
+                        });
+                    });
+                } else if (request === "Client had been successfully received all file") {
+                    console.log(`Peer ${peerID}: All chunks received by client`);
+                    socket.write("All chunks are received");
+                    serverSocket.close();
+                }
+            });
+        });
+    });
+
+    serverSocket.on('error', (err) => {
+        console.error(`Server error: ${err.message}`);
+    });
+})();

@@ -158,6 +158,8 @@ class Client {
         let buffer = Buffer.alloc(0);
         let chunkIndex = 0;
 
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
         clientSocket.on('data', async(data) => {
             // buffer = Buffer.concat([buffer, data]);
 
@@ -166,13 +168,12 @@ class Client {
             } else if (data.toString() === 'End') {
                 clientSocket.write(endChunk.toString());
             } else {
-                // const chunkData = JSON.parse(data.toString());
-                // const chunkIndex = parseInt(chunkData.chunk, 10);
                 const fileData = Buffer.from(data, 'base64');
                 const filePath = path.join("./Downloads", 'Chunk_List', `chunk${chunkIndex}.txt`);
                 try {
                     fs.writeFileSync(filePath, fileData);
                     console.log(`Client: Received chunk ${chunkIndex++}`);
+                    await delay(100); // Add delay to ensure proper synchronization
                 } catch (err) {
                     console.error(`Error writing chunk ${chunkIndex}: ${err.message}`);
                 }
@@ -223,9 +224,17 @@ class Client {
     fileMake(fileName) {
         const chunkListPath = path.join("./Downloads", 'Chunk_List');
         const files = fs.readdirSync(chunkListPath);
+
+        // Sort the files to ensure they are in the correct order
+        files.sort((a, b) => {
+            const aIndex = parseInt(a.match(/chunk(\d+)\.txt/)[1], 10);
+            const bIndex = parseInt(b.match(/chunk(\d+)\.txt/)[1], 10);
+            return aIndex - bIndex;
+        });
+
         const fileM = fs.createWriteStream(path.join("./Downloads", fileName));
 
-        files.forEach((file, index) => {
+        files.forEach((file) => {
             const chunk = fs.readFileSync(path.join(chunkListPath, file));
             fileM.write(chunk);
         });

@@ -10,9 +10,9 @@
         "client": "cd ./PeerApp/peer && nodemon clientApi.js",
         "peer1": "cd ./PeerApp1/peer && nodemon peer.js",
         "client1": "cd ./PeerApp1/peer && nodemon clientApi.js",
-        "front": "cd ./PeerApp/peer/front-end && npm start",
+        "front": "cd ./PeerApp/front-end && npm run dev",
         "css": "cd ./PeerApp/peer/front-end && npm run build-css",
-        "start": "concurrently \"npm run tracker\" \"npm run peer\" \"npm run client\" \"npm run peer1\" \"npm run client1\" \"npm run front\""
+        "start": "concurrently \"npm run tracker\" \"npm run peer\" \"npm run client\" \"npm run front\""
     },
     "type": "module",
     "keywords": [],
