@@ -13,6 +13,7 @@ CREATE TABLE Hosts (
 CREATE TABLE Files (
     host_name VARCHAR(255) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
+    file_hash VARCHAR(255) NOT NULL,
     primary key (host_name,file_name),
     FOREIGN KEY (host_name) REFERENCES Hosts(host_name) ON DELETE CASCADE
 );

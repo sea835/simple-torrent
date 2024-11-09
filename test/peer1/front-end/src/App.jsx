@@ -17,6 +17,57 @@ function App() {
   const [downloadStatus, setDownloadStatus] = useState("Not Started");
   const [chunk, setChunk] = useState(0);
 
+  const [torrentFile, setTorrentFile] = useState(null);
+  const [magnetLink, setMagnetLink] = useState("");
+  const [createdMagnetLink, setCreatedMagnetLink] = useState("");
+  const [parsedTorrentData, setParsedTorrentData] = useState(null);
+
+  // Create Magnet Link
+  const handleCreateMagnetLink = async () => {
+    if (!torrentFile) {
+      console.error("No torrent file selected");
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("torrentFile", torrentFile);
+      // console.log("torrentFile:", torrentFile);
+
+      const response = await axios.post(
+        `http://localhost:${CLIENT_PORT}/createMagnet`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      setCreatedMagnetLink(response.data.magnetLink);
+      //console.log("Magnet link created:", response.data.magnetLink);
+    } catch (error) {
+      console.error("Error creating magnet link:", error);
+    }
+  };
+
+  // Parse Magnet Link
+  const handleParseMagnetLink = async () => {
+    if (!magnetLink) {
+      console.error("No magnet link provided");
+      return;
+    }
+    try {
+      const response = await axios.post(
+        `http://localhost:${CLIENT_PORT}/parseMagnet`,
+        { magnetLink }
+      );
+      setParsedTorrentData(response.data);
+      //console.log("Parsed torrent data:", response.data);
+    } catch (error) {
+      console.error("Error parsing magnet link:", error);
+    }
+  };
+
   // Handle file selection
   const handleOnUpload = (e) => {
     setSelectedFile(e.target.files[0]);
@@ -417,6 +468,58 @@ function App() {
           >
             Download Torrent File
           </a>
+        )}
+      </section>
+
+      {/* Section for creating a magnet link */}
+      <section className="p-6 bg-gray-800 rounded-lg shadow-lg mt-4">
+        <h3 className="text-xl font-semibold mb-4">Create Magnet Link</h3>
+        <input
+          type="file"
+          onChange={(e) => setTorrentFile(e.target.files[0])}
+          className="text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:bg-blue-500 file:text-white file:border-none cursor-pointer"
+        />
+        <button
+          onClick={() => handleCreateMagnetLink()}
+          className="px-6 py-2 bg-green-500 rounded-lg font-semibold hover:bg-green-600 transition ml-4"
+        >
+          Generate Magnet Link
+        </button>
+        {createdMagnetLink && (
+          <div className="mt-4">
+            <p className="font-medium text-sm text-gray-400">Magnet Link:</p>
+            <input
+              type="text"
+              value={createdMagnetLink}
+              className="w-full text-green-400 bg-gray-700 p-2 rounded-lg"
+            />
+          </div>
+        )}
+      </section>
+
+      {/* Section for parsing a magnet link */}
+      <section className="p-6 bg-gray-800 rounded-lg shadow-lg mt-4">
+        <h3 className="text-xl font-semibold mb-4">Parse Magnet Link</h3>
+        <input
+          type="text"
+          value={magnetLink}
+          onChange={(e) => setMagnetLink(e.target.value)}
+          placeholder="Enter magnet link"
+          className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
+        />
+        <button
+          onClick={handleParseMagnetLink}
+          className="px-6 py-2 bg-purple-500 rounded-lg font-semibold hover:bg-purple-600 transition mt-4"
+        >
+          Parse Magnet Link
+        </button>
+        {parsedTorrentData && (
+          <div className="mt-4 text-gray-300">
+            <h4 className="font-semibold">Torrent Data:</h4>
+            <pre className="bg-gray-700 p-4 rounded-lg overflow-x-auto">
+              {JSON.stringify(parsedTorrentData, null, 2)}
+            </pre>
+          </div>
         )}
       </section>
 

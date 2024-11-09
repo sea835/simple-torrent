@@ -6,7 +6,6 @@ import axios from 'axios';
 import bencode from 'bencode';
 import { URL } from 'url';
 import querystring from 'querystring';
-import crypto from 'crypto';
 
 class Client {
     constructor(host, localPath) {
@@ -72,15 +71,13 @@ class Client {
             throw new Error('Invalid magnet link!');
         }
 
-        // console.log(parsed);
-
         const params = querystring.parse(parsed.searchParams.toString());
         const infoHash = params['xt'] ? params['xt'].replace('urn:btih:', '') : null;
         const fileName = params['dn'] || null;
-        const trackerUrl = params['tr'] ? params['tr'] : null;
-        const numChunks = parseInt(params['x.n'], 10);
-        const chunkSize = parseInt(params['x.c'], 10);
-        const fileSize = parseInt(params['x.s'], 10);
+        const trackerUrl = params['tr'] ? params['tr'][0] : null;
+        const numChunks = parseInt(params['x.n'][0], 10);
+        const chunkSize = parseInt(params['x.c'][0], 10);
+        const fileSize = parseInt(params['x.s'][0], 10);
 
         return {
             announce: trackerUrl || null,
@@ -225,49 +222,6 @@ class Client {
         });
     }
 
-    async hashFile(filePath) {
-        return new Promise((resolve, reject) => {
-            const hash = crypto.createHash('sha256');
-            const stream = fs.createReadStream(filePath);
-
-            stream.on('data', (chunk) => {
-                hash.update(chunk);
-            });
-
-            stream.on('end', () => {
-                resolve(hash.digest('hex')); // Output hash in hex format
-            });
-
-            stream.on('error', (err) => {
-                reject(err);
-            });
-        });
-    }
-
-    async verify(filename) {
-        try {
-            const response = await axios.get(`http://localhost:5000/hash?file_name=${filename}`);
-            const serverHash = response.data.hash;
-            const filePath = path.join("./Downloads", filename);
-            const localHash = await this.hashFile(filePath);
-            console.log("Local hash: ", localHash);
-            console.log("Server hash: ", serverHash);
-
-            if (serverHash === localHash) {
-                console.log('>>>>>> Hashes match! File is verified.');
-                return true;
-            } else {
-                console.log('>>>>>> Hashes do not match! File may be corrupted.');
-                console.log('>>>>>> Attempting to redownload the file...');
-                await this.downloadFile(filename, peerIp, peerPort);
-                return false;
-            }
-        } catch (error) {
-            console.error('Error verifying file:', error);
-            return false;
-        }
-    }
-
     fileMake(fileName) {
         const chunkListPath = path.join("./Downloads", 'Chunk_List');
         const files = fs.readdirSync(chunkListPath);
@@ -288,7 +242,6 @@ class Client {
 
         fileM.end();
         console.log('Client: Merge all chunks completed');
-        this.verify(fileName);
         return { status: "Finished", message: "File downloaded successfully" };
     }
 }

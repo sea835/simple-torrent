@@ -99,3 +99,7 @@ Content-Type: application/json
     "trackerUrl": "http://localhost:5000",
     "fileName": "no-image.png"
 }
+
+
+### Hash test
+GET http://localhost:5000/hash?file_name=music.mp3

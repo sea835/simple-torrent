@@ -28,7 +28,7 @@ app.get('/', (req, res) => {
 // Endpoint to register a peer
 app.post('/announce', async(req, res) => {
     console.log('=====================');
-    const { ip, port, files } = req.body;
+    const { ip, port, files, file_hash } = req.body;
     const host_name = `${ip}:${port}`;
 
     if (host_name && ip && port && files) {
@@ -46,7 +46,7 @@ app.post('/announce', async(req, res) => {
             }
 
             // Insert the files into the Files table (if not already inserted)
-            const filePromises = files.map(async(file) => {
+            const filePromises = files.map(async(file, index) => {
                 // Check if the file already exists for the host
                 const [fileRows] = await db.execute(
                     'SELECT COUNT(*) as count FROM Files WHERE host_name = ? AND file_name = ?', [host_name, file]
@@ -55,7 +55,7 @@ app.post('/announce', async(req, res) => {
                 if (fileRows[0].count === 0) {
                     // Insert only if the file doesn't already exist
                     return db.execute(
-                        'INSERT INTO Files (host_name, file_name) VALUES (?, ?)', [host_name, file]
+                        'INSERT INTO Files (host_name, file_name, file_hash) VALUES (?, ?, ?)', [host_name, file, file_hash[index]]
                     );
                 }
             });
@@ -202,6 +202,12 @@ app.get('/downloads/search', async(req, res) => {
         return res.status(500).json({ error: 'Database error' });
     }
 });
+
+app.get('/hash', async(req, res) => {
+    const { file_name } = req.query;
+    const [rows] = await db.execute('SELECT * FROM files where ?=files.file_name', [file_name]);
+    res.status(200).json({ hash: rows[0].file_hash });
+})
 
 // Start the server
 const PORT = 5000;

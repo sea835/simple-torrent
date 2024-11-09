@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
 import axios from 'axios';
+import crypto from 'crypto';
 
 import { createTorrentFile } from './createTorrentFile.js';
 import { createMagnetLink } from './createMagnetLink.js';
@@ -302,10 +303,34 @@ app.get('/downloadProgress', (req, res) => {
 });
 
 // Helper function to announce peer to tracker
+const hashFile = (filePath) => {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        const stream = fs.createReadStream(filePath);
+
+        stream.on('data', (chunk) => {
+            hash.update(chunk);
+        });
+
+        stream.on('end', () => {
+            resolve(hash.digest('hex')); // Output hash in hex format
+        });
+
+        stream.on('error', (err) => {
+            reject(err);
+        });
+    });
+}
+
+// Helper function to announce peer to tracker
 const announcePeer = async(ip, port) => {
     try {
-        const files = fs.readdirSync('./Share_File');
-        const peerInfo = { ip, port, files };
+        const files = fs.readdirSync('./Share_File').filter(file => {
+            const filePath = path.join('./Share_File', file);
+            return fs.statSync(filePath).isFile();
+        });
+        const fileHashes = await Promise.all(files.map(async(file) => await hashFile(path.join('./Share_File', file))));
+        const peerInfo = { ip, port, files, file_hase: fileHashes };
         const response = await axios.post('http://localhost:5000/announce', peerInfo);
         console.log('Announced to tracker:', response.data);
     } catch (error) {

@@ -34,11 +34,32 @@ class Peer {
         return null;
     }
 
-    async announceToTracker(trackerUrl, files) {
+    // Function to generate file hash
+    static async hashFile(filePath) {
+        return new Promise((resolve, reject) => {
+            const hash = crypto.createHash('sha256');
+            const stream = fs.createReadStream(filePath);
+
+            stream.on('data', (chunk) => {
+                hash.update(chunk);
+            });
+
+            stream.on('end', () => {
+                resolve(hash.digest('hex')); // Output hash in hex format
+            });
+
+            stream.on('error', (err) => {
+                reject(err);
+            });
+        });
+    }
+
+    async announceToTracker(trackerUrl, files, fileHash) {
         const data = {
             ip: this.IP,
             port: this.port,
-            files: files
+            files: files,
+            file_hash: fileHash, // Placeholder for file hash
         };
         try {
             const response = await axios.post(`${trackerUrl}/announce`, data);
@@ -72,7 +93,10 @@ class Peer {
     const files = getFilesToShare("./Share_File");
 
     console.log("Joining the swarm...");
-    await peer.announceToTracker(tracker_url, files);
+    const fileHashes = await Promise.all(files.map(file => Peer.hashFile(path.join(peer.localPath, file))));
+    //console.log("File hashes:", fileHashes);
+
+    await peer.announceToTracker(tracker_url, files, fileHashes);
 
     console.log("Listening...");
     const serverSocket = net.createServer();

@@ -9,7 +9,6 @@
         "client": "cd ./PeerApp/peer && nodemon clientApi.js",
         "front": "cd ./PeerApp/front-end && npm run dev",
         "css": "cd ./PeerApp/front-end && npm run css",
-
         "peer1": "cd ./test/peer1/Peer && nodemon peer.js",
         "client1": "cd ./test/peer1/Peer && nodemon clientApi.js",
         "front1": "cd ./test/peer1/front-end && npm run dev",
@@ -39,6 +38,7 @@
     },
     "devDependencies": {
         "concurrently": "^9.0.1",
+        "localtunnel": "^2.0.2",
         "nodemon": "^3.1.7"
     }
 }
