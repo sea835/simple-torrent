@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Torrent Tracker</title>
+    <style>
+        /* Reset and box-sizing rules */
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        /* Body Styling */
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #20232a;
+            color: #f8f8f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        /* Main Container */
+        
+        .container {
+            background-color: #282c34;
+            width: 90%;
+            max-width: 1200px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+            margin-top: 20px;
+        }
+        /* Title Styling */
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #61dafb;
+        }
+        /* Section Heading */
+        
+        h2 {
+            margin-top: 30px;
+            margin-bottom: 10px;
+            color: #f0db4f;
+            border-bottom: 2px solid #f0db4f;
+            padding-bottom: 5px;
+            font-size: 1.5rem;
+        }
+        /* Table Container Flexbox */
+        
+        .table-container {
+            display: flex;
+            flex-direction: column;
+            /* Ensures the tables are stacked vertically */
+            gap: 20px;
+        }
+        /* Table Styling */
+        
+        table {
+            width: 100%;
+            background-color: #333842;
+            border-collapse: collapse;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        th,
+        td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid #555;
+            font-size: 0.95rem;
+        }
+        
+        th {
+            background-color: #444b58;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        
+        td {
+            color: #cdd9e5;
+            font-size: 0.9rem;
+        }
+        
+        tr:hover {
+            background-color: #3b4048;
+        }
+        /* Button Styling */
+        
+        button {
+            background-color: #61dafb;
+            color: #282c34;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #4ec0e6;
+            box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        /* Responsive Design */
+        
+        @media (max-width: 768px) {
+            table {
+                font-size: 0.85rem;
+            }
+            th,
+            td {
+                padding: 10px;
+            }
+        }
+        /* Scrollable Table Body if needed */
+        
+        tbody {
+            display: block;
+            max-height: 300px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        tbody tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+        
+        thead {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="container">
+        <h1>Simple Torrent Tracker</h1>
+
+        <!-- Peers Section -->
+        <h2>Registered Peers with Files</h2>
+        <div class="table-container">
+            <table id="peers-table">
+                <thead>
+                    <tr>
+                        <th>Host Name</th>
+                        <th>IP</th>
+                        <th>Port</th>
+                        <th>Files</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dynamic rows will be inserted here -->
+                </tbody>
+            </table>
+
+            <!-- Downloads Section -->
+            <h2>Download History</h2>
+            <table id="downloads-table">
+                <thead>
+                    <tr>
+                        <th>Downloader</th>
+                        <th>Sender</th>
+                        <th>File Name</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dynamic rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Fetch and display peers with files
+        async function loadPeers() {
+            const peersTableBody = document.querySelector('#peers-table tbody');
+            peersTableBody.innerHTML = ''; // Clear existing rows
+
+            try {
+                const response = await fetch('http://localhost:5000/all-peers');
+                const data = await response.json();
+
+                data.peers.forEach(peer => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${peer.host_name}</td>
+                        <td>${peer.ip}</td>
+                        <td>${peer.port}</td>
+                        <td>${peer.file_name ? peer.file_name : 'No files'}</td>
+                    `;
+                    peersTableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching peers:', error);
+            }
+        }
+
+        // Fetch and display downloads
+        async function loadDownloads() {
+            const downloadsTableBody = document.querySelector('#downloads-table tbody');
+            downloadsTableBody.innerHTML = ''; // Clear existing rows
+
+            try {
+                const response = await fetch('http://localhost:5000/downloads');
+                const data = await response.json();
+
+                data.downloads.forEach(download => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${download.downloader_host_name}</td>
+                        <td>${download.sender_host_name}</td>
+                        <td>${download.file_name}</td>
+                        <td>${new Date(download.download_date).toLocaleString()}</td>
+                    `;
+                    downloadsTableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching downloads:', error);
+            }
+        }
+
+        // Load both tables on page load
+        window.onload = function() {
+            loadPeers();
+            loadDownloads();
+        };
+    </script>
+
+</body>
+
+</html>

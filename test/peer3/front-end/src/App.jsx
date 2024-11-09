@@ -91,8 +91,30 @@ function App() {
     }
   };
 
+  const uploadSharedFile = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile, selectedFile.name);
+
+      const response = await axios.post(
+        `http://localhost:${CLIENT_PORT}/uploadFile`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log("File uploaded successfully:", response.data);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+    }
+  };
+
   const handleOnCreateTorrent = useCallback(() => {
     uploadTorrent();
+    uploadSharedFile();
   }, [selectedFile]);
 
   const handleOnDownloadFile = (fileName) => {
@@ -313,7 +335,6 @@ function App() {
 
         {/* Shared Files and Downloaded Files Section */}
         <aside className="w-1/3 flex flex-col space-y-6">
-          {/* Shared Files Section */}
           <div className="p-6 bg-gray-800 rounded-lg shadow-lg">
             <h3 className="text-xl font-semibold mb-4">Shared Files</h3>
             <div className="bg-gray-700 p-4 pt-0 rounded-lg h-[200px] overflow-y-auto">
@@ -324,15 +345,17 @@ function App() {
                     <span className="text-right">Size (KB)</span>
                   </div>
                   <ul className="space-y-2">
-                    {files.map((file) => (
-                      <li
-                        key={file.fileName}
-                        className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
-                      >
-                        <span>{file.fileName}</span>
-                        <span>{file.size}</span>
-                      </li>
-                    ))}
+                    {files
+                      .filter((file) => file.fileName !== "Chunk_List")
+                      .map((file) => (
+                        <li
+                          key={file.fileName}
+                          className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
+                        >
+                          <span>{file.fileName}</span>
+                          <span>{file.size}</span>
+                        </li>
+                      ))}
                   </ul>
                 </div>
               ) : (
@@ -349,18 +372,20 @@ function App() {
                 <div>
                   <div className="grid grid-cols-2 font-semibold border-b border-gray-600 pb-2 pt-4 mb-2 sticky top-0 bg-gray-700">
                     <span>File Name</span>
-                    <span className="text-right">Size (KB)</span>
+                    {/* <span className="text-right">Size (KB)</span> */}
                   </div>
                   <ul className="space-y-2">
-                    {downloadedFiles.map((file) => (
-                      <li
-                        key={file.fileName}
-                        className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
-                      >
-                        <span>{file.fileName}</span>
-                        <span>{file.size}</span>
-                      </li>
-                    ))}
+                    {downloadedFiles
+                      .filter((file) => file.fileName !== "Chunk_List")
+                      .map((file) => (
+                        <li
+                          key={file.fileName}
+                          className="flex justify-between py-1 px-2 hover:bg-gray-600 rounded cursor-pointer"
+                        >
+                          <span>{file.fileName}</span>
+                          {/* <span>{file.size}</span> */}
+                        </li>
+                      ))}
                   </ul>
                 </div>
               ) : (

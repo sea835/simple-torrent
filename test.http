@@ -34,7 +34,7 @@ Content-Type: application/x-bittorrent
 
 
 ### Upload File
-POST http://localhost:10000/uploadFile
+POST http://localhost:10001/uploadFile
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary

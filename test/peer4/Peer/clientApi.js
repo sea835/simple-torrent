@@ -249,11 +249,17 @@ app.post('/download', async(req, res) => {
             });
         }
 
-        // Calculate the number of chunks for the file
-        // const filePath = path.join('./Share_File', fileName);
-        // const fileSize = fs.statSync(filePath).size;
-        const chunkSize = 50 * 1024; // 50 KB
-        // const numChunks = Math.ceil(fileSize / chunkSize);
+        peers.resIP.forEach((ip, index) => {
+            axios.post(`${trackerUrl}/downloads`, {
+                downloader_host_name: `localhost:${PORT}`,
+                sender_host_name: `${ip}:${peers.resPort[index]}`,
+                file_name: fileName
+            }).then((response) => {
+                console.log('+++++++Download registered:', response.data);
+            }).catch((error) => {
+                console.error('++++++Error registering download:', error.message);
+            });
+        })
 
         // Distribute chunks among peers
         const chunksPerPeer = Math.ceil(numChunks / peers.resIP.length);
