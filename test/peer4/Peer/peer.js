@@ -5,6 +5,7 @@ import axios from 'axios';
 import net from 'net';
 import { Worker } from 'worker_threads';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 // Constants
 const chunk_SIZE = 50 * 1024; // 50 KB
@@ -85,7 +86,7 @@ class Peer {
 }
 
 (async function main() {
-    const peerID = 4;
+    const peerID = 1;
     const port = 40002;
     await Peer.uploadFile();
 
@@ -94,7 +95,7 @@ class Peer {
 
     console.log("Joining the swarm...");
     const fileHashes = await Promise.all(files.map(file => Peer.hashFile(path.join(peer.localPath, file))));
-    console.log("File hashes:", fileHashes);
+    //console.log("File hashes:", fileHashes);
 
     await peer.announceToTracker(tracker_url, files, fileHashes);
 

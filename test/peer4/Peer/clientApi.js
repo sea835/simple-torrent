@@ -5,6 +5,8 @@ import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
 import axios from 'axios';
+import crypto from 'crypto';
+import bencode from 'bencode';
 
 import { createTorrentFile } from './createTorrentFile.js';
 import { createMagnetLink } from './createMagnetLink.js';
@@ -153,18 +155,39 @@ app.post('/createTorrent', upload.single('file'), (req, res) => {
     }
 });
 
-// POST /createMagnet - Create a magnet link from the torrent file
-app.post('/createMagnet', (req, res) => {
-    const { torrentFile } = req.body;
-    if (!torrentFile) {
-        return res.status(400).json({ error: 'Torrent file is required' });
+const convertUint8ArrayToString = (data) => {
+    if (data instanceof Uint8Array) {
+        return new TextDecoder().decode(data);
+    } else if (typeof data === 'object' && data !== null) {
+        for (const key in data) {
+            data[key] = convertUint8ArrayToString(data[key]);
+        }
     }
+    return data;
+};
+
+// POST /createMagnet - Create a magnet link from the torrent file
+app.post('/createMagnet', upload.single('torrentFile'), (req, res) => {
+    const torrentFilePath = req.file.path;
 
     try {
-        const magnetLink = createMagnetLink(torrentFile);
+        const torrentFile = fs.readFileSync(torrentFilePath);
+        const torrentData = bencode.decode(torrentFile);
+
+        // Convert Uint8Array values to strings
+        const readableTorrentData = convertUint8ArrayToString(torrentData);
+        // console.log(readableTorrentData);
+
+        // Create the magnet link (this is a simplified example)
+        const magnetLink = createMagnetLink(readableTorrentData);
+
+        // Clean up the uploaded file
+        fs.unlinkSync(torrentFilePath);
+
         res.json({ magnetLink });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error processing torrent file:', error);
+        res.status(500).json({ error: 'Error processing torrent file' });
     }
 });
 
@@ -301,7 +324,6 @@ app.get('/downloadProgress', (req, res) => {
     res.json({ receivedChunks });
 });
 
-// Helper function to announce peer to tracker
 const hashFile = (filePath) => {
     return new Promise((resolve, reject) => {
         const hash = crypto.createHash('sha256');

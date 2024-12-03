@@ -5,6 +5,7 @@ import axios from 'axios';
 import net from 'net';
 import { Worker } from 'worker_threads';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 // Constants
 const chunk_SIZE = 50 * 1024; // 50 KB
@@ -85,7 +86,7 @@ class Peer {
 }
 
 (async function main() {
-    const peerID = 3;
+    const peerID = 1;
     const port = 30002;
     await Peer.uploadFile();
 
